@@ -1,0 +1,20 @@
+server:
+  port: 31326
+  tomcat:
+    uri-encoding: UTF-8
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  servlet:
+    multipart:
+      max-file-size: 28MB
+      max-request-size: 128MB
+      enabled: true
+      location: ${java.io.tmpdir}
+
+logging:
+  level:
+    org.springframework: info
+    org.webvane: debug
+    org.hibernate: info
