@@ -3,6 +3,8 @@ package io.provisionlabs.example.ocr.client;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.provisionlabs.example.ocr.model.Document;
+import io.provisionlabs.example.ocr.model.OCRResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.*;
@@ -11,6 +13,7 @@ import org.springframework.web.client.RestTemplate;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import static org.springframework.http.HttpHeaders.USER_AGENT;
@@ -64,7 +67,7 @@ public class OCRClient {
         }
     }
 
-    public String process( byte[] fileBytes, String templateDoc ) throws IOException {
+    public String callProcess( byte[] fileBytes, String templateDoc ) throws IOException {
         String url = processUrlTemplate.replace("{template}", templateDoc);
 
         HttpHeaders headers = new HttpHeaders();
@@ -81,4 +84,10 @@ public class OCRClient {
         return json;
     }
 
+    public List<Document> processAndParse(byte[] fileBytes, String templateDoc ) throws IOException {
+        String ret = callProcess( fileBytes, templateDoc );
+        OCRResponse resp = objectMapper.readValue( ret, OCRResponse.class );
+
+        return resp != null ? resp.getDocument() : null;
+    }
 }
