@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OCR визуализатор</title>
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; background: #f6f7fb; color: #172033; }
+        header { padding: 20px 32px; background: #172033; color: #fff; }
+        main { display: grid; grid-template-columns: minmax(320px, 42%) 1fr; gap: 20px; padding: 24px; }
+        .panel { background: #fff; border-radius: 14px; box-shadow: 0 8px 26px rgba(23, 32, 51, .08); padding: 20px; }
+        .upload-area { border: 2px dashed #8aa0c6; border-radius: 12px; min-height: 420px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; background: #fbfcff; }
+        .upload-empty { text-align: center; color: #5b6b86; padding: 24px; }
+        .preview { max-width: 100%; max-height: 70vh; border: 0; }
+        object.preview { width: 100%; height: 70vh; }
+        .loader { display: none; position: absolute; inset: 0; background: rgba(255, 255, 255, .88); align-items: center; justify-content: center; flex-direction: column; gap: 16px; font-weight: 700; }
+        .spinner { width: 56px; height: 56px; border: 6px solid #dbe4f5; border-top-color: #2864d9; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        form { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; align-items: end; }
+        label { display: grid; gap: 6px; font-size: 13px; color: #44536c; }
+        input[type="text"], input[type="file"] { border: 1px solid #cad4e8; border-radius: 8px; padding: 10px; background: #fff; }
+        button { border: 0; border-radius: 8px; padding: 11px 18px; background: #2864d9; color: #fff; cursor: pointer; font-weight: 700; }
+        button:disabled { opacity: .55; cursor: not-allowed; }
+        .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+        .tab { background: #ecf1fb; color: #274062; }
+        .tab.active { background: #2864d9; color: #fff; }
+        .page-card { border: 1px solid #e0e7f4; border-radius: 12px; padding: 16px; margin-top: 12px; }
+        .section-title { margin: 16px 0 8px; font-size: 18px; }
+        .paragraph { padding: 10px; border-left: 4px solid #2864d9; background: #f7f9fe; margin: 8px 0; white-space: pre-wrap; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0 18px; }
+        td, th { border: 1px solid #cdd7ea; padding: 8px; vertical-align: top; }
+        .muted { color: #687891; }
+        .error { color: #a32323; background: #fff0f0; border: 1px solid #ffd0d0; padding: 12px; border-radius: 10px; }
+        @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<header>
+    <h1>OCR загрузка и визуализатор</h1>
+    <div>Загрузите изображение или PDF, отправьте документ в OCR и просмотрите страницы, текст и таблицы.</div>
+</header>
+<main>
+    <section class="panel">
+        <form id="ocrForm">
+            <label>Файл image/pdf
+                <input id="fileInput" name="file" type="file" accept="image/*,application/pdf" required>
+            </label>
+            <label>Шаблон
+                <input id="templateInput" name="template" type="text" th:value="${template}" placeholder="default">
+            </label>
+            <button id="processButton" type="submit">Process</button>
+        </form>
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-empty" id="emptyState">Предпросмотр файла появится здесь</div>
+            <div class="loader" id="loader"><div class="spinner"></div><div>Идет обработка OCR...</div></div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2>Результат распознавания</h2>
+        <div id="status" class="muted">Документ еще не обработан.</div>
+        <div id="documentTabs" class="tabs"></div>
+        <div id="pageTabs" class="tabs"></div>
+        <div id="viewer"></div>
+    </section>
+</main>
+<script>
+    const form = document.getElementById('ocrForm');
+    const fileInput = document.getElementById('fileInput');
+    const templateInput = document.getElementById('templateInput');
+    const processButton = document.getElementById('processButton');
+    const uploadArea = document.getElementById('uploadArea');
+    const emptyState = document.getElementById('emptyState');
+    const loader = document.getElementById('loader');
+    const statusNode = document.getElementById('status');
+    const documentTabs = document.getElementById('documentTabs');
+    const pageTabs = document.getElementById('pageTabs');
+    const viewer = document.getElementById('viewer');
+    let resultDocuments = [];
+    let currentDocumentIndex = 0;
+
+    fileInput.addEventListener('change', showPreview);
+    form.addEventListener('submit', processFile);
+
+    function showPreview() {
+        const file = fileInput.files[0];
+        uploadArea.querySelectorAll('.preview').forEach(node => node.remove());
+        emptyState.style.display = file ? 'none' : 'block';
+        if (!file) return;
+
+        const url = URL.createObjectURL(file);
+        const preview = file.type === 'application/pdf' ? document.createElement('object') : document.createElement('img');
+        preview.className = 'preview';
+        if (file.type === 'application/pdf') {
+            preview.type = 'application/pdf';
+            preview.data = url;
+        } else {
+            preview.src = url;
+            preview.alt = file.name;
+        }
+        uploadArea.appendChild(preview);
+    }
+
+    async function processFile(event) {
+        event.preventDefault();
+        const file = fileInput.files[0];
+        if (!file) {
+            showError('Выберите image или pdf файл.');
+            return;
+        }
+
+        processButton.disabled = true;
+        loader.style.display = 'flex';
+        statusNode.textContent = 'Файл отправлен на обработку...';
+        viewer.innerHTML = '';
+        documentTabs.innerHTML = '';
+        pageTabs.innerHTML = '';
+
+        const data = new FormData();
+        data.append('file', file);
+        data.append('template', templateInput.value || 'default');
+
+        try {
+            const response = await fetch('/ocr/process', { method: 'POST', body: data });
+            if (!response.ok) {
+                throw new Error(await response.text() || `HTTP ${response.status}`);
+            }
+            const payload = await response.json();
+            resultDocuments = payload.documents || [];
+            currentDocumentIndex = 0;
+            statusNode.textContent = resultDocuments.length ? `Получено документов: ${resultDocuments.length}` : 'OCR вернул пустой результат.';
+            renderDocumentTabs();
+            renderPageTabs(0);
+            renderPage(0, 0);
+        } catch (error) {
+            showError(`Ошибка обработки: ${error.message}`);
+        } finally {
+            processButton.disabled = false;
+            loader.style.display = 'none';
+        }
+    }
+
+    function renderDocumentTabs() {
+        documentTabs.innerHTML = '';
+        resultDocuments.forEach((documentData, index) => {
+            const button = tabButton(`Документ ${index + 1}`, index === currentDocumentIndex, () => {
+                currentDocumentIndex = index;
+                renderDocumentTabs();
+                renderPageTabs(0);
+                renderPage(index, 0);
+            });
+            documentTabs.appendChild(button);
+        });
+    }
+
+    function renderPageTabs(activePageIndex) {
+        pageTabs.innerHTML = '';
+        const pages = (resultDocuments[currentDocumentIndex] || {}).page || [];
+        pages.forEach((page, index) => {
+            const label = `Страница ${page.page_number || index + 1}`;
+            pageTabs.appendChild(tabButton(label, index === activePageIndex, () => renderPage(currentDocumentIndex, index)));
+        });
+    }
+
+    function renderPage(documentIndex, pageIndex) {
+        renderPageTabs(pageIndex);
+        const documentData = resultDocuments[documentIndex];
+        const page = documentData && documentData.page ? documentData.page[pageIndex] : null;
+        if (!page) {
+            viewer.innerHTML = '<p class="muted">Нет страниц для отображения.</p>';
+            return;
+        }
+
+        const paragraphs = (page.paragraphs || []).map(paragraph => `<div class="paragraph">${escapeHtml(paragraph.text || '')}</div>`).join('');
+        const blocks = (page.blocks || []).map(block => `<li>${escapeHtml(block.text || '')}</li>`).join('');
+        const tables = (page.tables || []).map(renderTable).join('');
+
+        viewer.innerHTML = `
+            <div class="page-card">
+                <h3>Страница ${escapeHtml(page.page_number || pageIndex + 1)}</h3>
+                <div class="muted">Размер документа: ${escapeHtml(documentData.width || '-')} × ${escapeHtml(documentData.height || '-')}</div>
+                <h4 class="section-title">Параграфы</h4>
+                ${paragraphs || '<p class="muted">Параграфы не найдены.</p>'}
+                <h4 class="section-title">Таблицы</h4>
+                ${tables || '<p class="muted">Таблицы не найдены.</p>'}
+                <h4 class="section-title">Текстовые блоки</h4>
+                ${blocks ? `<ul>${blocks}</ul>` : '<p class="muted">Блоки не найдены.</p>'}
+            </div>`;
+    }
+
+    function renderTable(tableData) {
+        const rows = tableData.cells || [];
+        const body = rows.map(row => `<tr>${(row || []).map(cell => `
+            <td colspan="${escapeAttribute(cell.colspan || 1)}" rowspan="${escapeAttribute(cell.rowspan || 1)}">${escapeHtml(cell.text || '')}</td>`).join('')}</tr>`).join('');
+        return `<table><caption>Таблица ${escapeHtml(tableData.table_number || '')}</caption><tbody>${body}</tbody></table>`;
+    }
+
+    function tabButton(label, active, onClick) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `tab${active ? ' active' : ''}`;
+        button.textContent = label;
+        button.addEventListener('click', onClick);
+        return button;
+    }
+
+    function showError(message) {
+        statusNode.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+    }
+
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+    }
+
+    function escapeAttribute(value) {
+        return escapeHtml(value).replace(/[^0-9]/g, '') || '1';
+    }
+</script>
+</body>
+</html>

@@ -18,3 +18,5 @@ logging:
     org.springframework: info
     org.webvane: debug
     org.hibernate: info
+ocr:
+  process-url-template: ${OCR_PROCESS_URL_TEMPLATE:http://localhost:8098/processing/{template}}
