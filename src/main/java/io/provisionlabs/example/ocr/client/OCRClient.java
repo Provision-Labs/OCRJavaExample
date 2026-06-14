@@ -7,7 +7,10 @@ import io.provisionlabs.example.ocr.model.Document;
 import io.provisionlabs.example.ocr.model.OCRResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
@@ -36,6 +39,7 @@ public class OCRClient {
 
     public OCRClient( RestTemplate restTemplate,  String processUrlTemplate ) {
         this.restTemplate = restTemplate;
+        this.processUrlTemplate = processUrlTemplate;
     }
 
     public boolean isHealthy() {
@@ -89,5 +93,52 @@ public class OCRClient {
         OCRResponse resp = objectMapper.readValue( ret, OCRResponse.class );
 
         return resp != null ? resp.getDocument() : null;
+    }
+
+    public String callProcess(byte[] fileBytes, String templateDoc, String contentType, String filename) {
+        String url = processUrlTemplate.replace("{template}", templateDoc);
+
+        HttpHeaders fileHeaders = new HttpHeaders();
+        fileHeaders.setContentType(resolveMediaType(contentType));
+        fileHeaders.setContentDispositionFormData("file", filename != null ? filename : "document");
+
+        ByteArrayResource fileResource = new ByteArrayResource(fileBytes) {
+            @Override
+            public String getFilename() {
+                return filename != null ? filename : "document";
+            }
+        };
+
+        MultiValueMap<String, Object> data = new LinkedMultiValueMap<>();
+        data.add("file", new HttpEntity<>(fileResource, fileHeaders));
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        requestHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
+        requestHeaders.setAcceptCharset(Collections.singletonList(StandardCharsets.UTF_8));
+        requestHeaders.set(USER_AGENT, USER_AGENT_DEFAULT);
+
+        log.info("Multipart request to " + url);
+        ResponseEntity<String> response = restTemplate.postForEntity(url, new HttpEntity<>(data, requestHeaders), String.class);
+        return response.getBody();
+    }
+
+    public List<Document> processAndParse(byte[] fileBytes, String templateDoc, String contentType, String filename) throws IOException {
+        String ret = callProcess(fileBytes, templateDoc, contentType, filename);
+        OCRResponse resp = objectMapper.readValue(ret, OCRResponse.class);
+
+        return resp != null ? resp.getDocument() : null;
+    }
+
+    private MediaType resolveMediaType(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
+        try {
+            return MediaType.parseMediaType(contentType);
+        }
+        catch (InvalidMediaTypeException e) {
+            log.warn("Unsupported content type '{}', using application/octet-stream", contentType);
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
     }
 }
