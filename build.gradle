@@ -32,6 +32,8 @@ dependencies {
         "org.springframework.boot:spring-boot-starter-web",
         "org.springframework.boot:spring-boot-starter-thymeleaf"
     )
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
 }
 
 configurations.configureEach {
@@ -46,4 +48,14 @@ bootJar {
 
 jar {
     archiveClassifier = ""
+}
+
+test {
+    useJUnitPlatform()
+
+    // Опционально: настройка логирования тестов
+    testLogging {
+        events "passed", "skipped", "failed"
+        showStandardStreams = true
+    }
 }
