@@ -65,7 +65,7 @@ Run it:
 Open the web UI in a browser:
 
 ```text
-http://localhost:8080/ocr
+http://localhost:8088/ocr
 ```
 
 If your Provision OCR server is not available at the default URL, override the client endpoint with the `OCR_PROCESS_URL_TEMPLATE` environment variable:
