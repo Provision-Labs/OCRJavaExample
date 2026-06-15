@@ -92,7 +92,7 @@ public class OCRClient {
         String ret = callProcess( fileBytes, templateDoc );
         OCRResponse resp = objectMapper.readValue( ret, OCRResponse.class );
 
-        return resp != null ? resp.getDocument() : null;
+        return resp != null ? resp.documents : null;
     }
 
     public String callProcess(byte[] fileBytes, String templateDoc, String contentType, String filename) {
@@ -126,7 +126,7 @@ public class OCRClient {
         String ret = callProcess(fileBytes, templateDoc, contentType, filename);
         OCRResponse resp = objectMapper.readValue(ret, OCRResponse.class);
 
-        return resp != null ? resp.getDocument() : null;
+        return resp != null ? resp.documents : null;
     }
 
     private MediaType resolveMediaType(String contentType) {

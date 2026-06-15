@@ -155,7 +155,7 @@
 
     function renderPageTabs(activePageIndex) {
         pageTabs.innerHTML = '';
-        const pages = (resultDocuments[currentDocumentIndex] || {}).page || [];
+        const pages = (resultDocuments[currentDocumentIndex] || {}).pages || [];
         pages.forEach((page, index) => {
             const label = `Страница ${page.page_number || index + 1}`;
             pageTabs.appendChild(tabButton(label, index === activePageIndex, () => renderPage(currentDocumentIndex, index)));
@@ -165,7 +165,7 @@
     function renderPage(documentIndex, pageIndex) {
         renderPageTabs(pageIndex);
         const documentData = resultDocuments[documentIndex];
-        const page = documentData && documentData.page ? documentData.page[pageIndex] : null;
+        const page = documentData && documentData.pages ? documentData.pages[pageIndex] : null;
         if (!page) {
             viewer.innerHTML = '<p class="muted">Нет страниц для отображения.</p>';
             return;

@@ -6,5 +6,5 @@ public class Document {
     public int width;
     public int height;
     public int schema_version;
-    public List<Page> page;
+    public List<Page> pages;
 }
