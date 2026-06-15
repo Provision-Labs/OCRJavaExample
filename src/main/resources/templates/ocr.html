@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>OCR визуализатор</title>
+    <title>OCR Visualizer</title>
     <style>
         body { margin: 0; font-family: Arial, sans-serif; background: #f6f7fb; color: #172033; }
         header { padding: 20px 32px; background: #172033; color: #fff; }
@@ -36,29 +36,29 @@
 </head>
 <body>
 <header>
-    <h1>OCR загрузка и визуализатор</h1>
-    <div>Загрузите изображение или PDF, отправьте документ в OCR и просмотрите страницы, текст и таблицы.</div>
+    <h1>OCR Upload and Visualizer</h1>
+    <div>Upload an image or PDF, send the document for OCR, and review pages, text, and tables.</div>
 </header>
 <main>
     <section class="panel">
         <form id="ocrForm">
-            <label>Файл image/pdf
+            <label>Image/PDF file
                 <input id="fileInput" name="file" type="file" accept="image/*,application/pdf" required>
             </label>
-            <label>Шаблон
+            <label>Template
                 <input id="templateInput" name="template" type="text" th:value="${template}" placeholder="default">
             </label>
             <button id="processButton" type="submit">Process</button>
         </form>
         <div class="upload-area" id="uploadArea">
-            <div class="upload-empty" id="emptyState">Предпросмотр файла появится здесь</div>
-            <div class="loader" id="loader"><div class="spinner"></div><div>Идет обработка OCR...</div></div>
+            <div class="upload-empty" id="emptyState">File preview will appear here</div>
+            <div class="loader" id="loader"><div class="spinner"></div><div>OCR processing is in progress...</div></div>
         </div>
     </section>
 
     <section class="panel">
-        <h2>Результат распознавания</h2>
-        <div id="status" class="muted">Документ еще не обработан.</div>
+        <h2>Recognition Result</h2>
+        <div id="status" class="muted">The document has not been processed yet.</div>
         <div id="documentTabs" class="tabs"></div>
         <div id="pageTabs" class="tabs"></div>
         <div id="viewer"></div>
@@ -105,13 +105,13 @@
         event.preventDefault();
         const file = fileInput.files[0];
         if (!file) {
-            showError('Выберите image или pdf файл.');
+            showError('Select an image or PDF file.');
             return;
         }
 
         processButton.disabled = true;
         loader.style.display = 'flex';
-        statusNode.textContent = 'Файл отправлен на обработку...';
+        statusNode.textContent = 'The file has been submitted for processing...';
         viewer.innerHTML = '';
         documentTabs.innerHTML = '';
         pageTabs.innerHTML = '';
@@ -128,12 +128,12 @@
             const payload = await response.json();
             resultDocuments = payload.documents || [];
             currentDocumentIndex = 0;
-            statusNode.textContent = resultDocuments.length ? `Получено документов: ${resultDocuments.length}` : 'OCR вернул пустой результат.';
+            statusNode.textContent = resultDocuments.length ? `Documents received: ${resultDocuments.length}` : 'OCR returned an empty result.';
             renderDocumentTabs();
             renderPageTabs(0);
             renderPage(0, 0);
         } catch (error) {
-            showError(`Ошибка обработки: ${error.message}`);
+            showError(`Processing error: ${error.message}`);
         } finally {
             processButton.disabled = false;
             loader.style.display = 'none';
@@ -143,7 +143,7 @@
     function renderDocumentTabs() {
         documentTabs.innerHTML = '';
         resultDocuments.forEach((documentData, index) => {
-            const button = tabButton(`Документ ${index + 1}`, index === currentDocumentIndex, () => {
+            const button = tabButton(`Document ${index + 1}`, index === currentDocumentIndex, () => {
                 currentDocumentIndex = index;
                 renderDocumentTabs();
                 renderPageTabs(0);
@@ -157,7 +157,7 @@
         pageTabs.innerHTML = '';
         const pages = (resultDocuments[currentDocumentIndex] || {}).pages || [];
         pages.forEach((page, index) => {
-            const label = `Страница ${page.page_number || index + 1}`;
+            const label = `Page ${page.page_number || index + 1}`;
             pageTabs.appendChild(tabButton(label, index === activePageIndex, () => renderPage(currentDocumentIndex, index)));
         });
     }
@@ -167,7 +167,7 @@
         const documentData = resultDocuments[documentIndex];
         const page = documentData && documentData.pages ? documentData.pages[pageIndex] : null;
         if (!page) {
-            viewer.innerHTML = '<p class="muted">Нет страниц для отображения.</p>';
+            viewer.innerHTML = '<p class="muted">No pages to display.</p>';
             return;
         }
 
@@ -177,14 +177,14 @@
 
         viewer.innerHTML = `
             <div class="page-card">
-                <h3>Страница ${escapeHtml(page.page_number || pageIndex + 1)}</h3>
-                <div class="muted">Размер документа: ${escapeHtml(documentData.width || '-')} × ${escapeHtml(documentData.height || '-')}</div>
-                <h4 class="section-title">Параграфы</h4>
-                ${paragraphs || '<p class="muted">Параграфы не найдены.</p>'}
-                <h4 class="section-title">Таблицы</h4>
-                ${tables || '<p class="muted">Таблицы не найдены.</p>'}
-                <h4 class="section-title">Текстовые блоки</h4>
-                ${blocks ? `<ul>${blocks}</ul>` : '<p class="muted">Блоки не найдены.</p>'}
+                <h3>Page ${escapeHtml(page.page_number || pageIndex + 1)}</h3>
+                <div class="muted">Document size: ${escapeHtml(documentData.width || '-')} × ${escapeHtml(documentData.height || '-')}</div>
+                <h4 class="section-title">Paragraphs</h4>
+                ${paragraphs || '<p class="muted">No paragraphs found.</p>'}
+                <h4 class="section-title">Tables</h4>
+                ${tables || '<p class="muted">No tables found.</p>'}
+                <h4 class="section-title">Text Blocks</h4>
+                ${blocks ? `<ul>${blocks}</ul>` : '<p class="muted">No blocks found.</p>'}
             </div>`;
     }
 
@@ -192,7 +192,7 @@
         const rows = tableData.cells || [];
         const body = rows.map(row => `<tr>${(row || []).map(cell => `
             <td colspan="${escapeAttribute(cell.colspan || 1)}" rowspan="${escapeAttribute(cell.rowspan || 1)}">${escapeHtml(cell.text || '')}</td>`).join('')}</tr>`).join('');
-        return `<table><caption>Таблица ${escapeHtml(tableData.table_number || '')}</caption><tbody>${body}</tbody></table>`;
+        return `<table><caption>Table ${escapeHtml(tableData.table_number || '')}</caption><tbody>${body}</tbody></table>`;
     }
 
     function tabButton(label, active, onClick) {
